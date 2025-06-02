@@ -72,7 +72,7 @@ class _NobetciEczaneAppState extends State<NobetciEczaneApp> {
                   const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
         ),
       ),
-      home: const Homepage(),
+      home: const HomePage(),
       debugShowCheckedModeBanner: false, // Debug banner'ını kaldır
     );
   }
