@@ -92,9 +92,6 @@ class _HomePageState extends State<HomePage> {
         _currentLocationDisplay = "Konum Alınamadı";
       });
       throw Exception('Eczane verileri yüklenirken hata oluştu: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $_errorMessage')),
-      );
     }
   }
 
