@@ -73,7 +73,7 @@ class _NobetciEczaneAppState extends State<NobetciEczaneApp> {
         ),
       ),
       home: const HomePage(),
-      debugShowCheckedModeBanner: false, // Debug banner'ını kaldır
+      debugShowCheckedModeBanner: false,
     );
   }
 }
