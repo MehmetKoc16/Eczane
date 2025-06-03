@@ -17,6 +17,7 @@ class _NobetciEczaneAppState extends State<NobetciEczaneApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Nöbetçi Eczane',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.green,
         fontFamily: 'Roboto',

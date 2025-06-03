@@ -55,14 +55,19 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      if (city == null || district == null || city.isEmpty || district.isEmpty) {
-        final Map<String, String> locationData = await _pharmacyService.getLocation();
+      if (city == null ||
+          district == null ||
+          city.isEmpty ||
+          district.isEmpty) {
+        final Map<String, String> locationData =
+            await _pharmacyService.getLocation();
         city = locationData['city'];
         district = locationData['district'];
         setState(() {
           _currentLocationDisplay = "${district ?? ''}, ${city ?? ''}".trim();
           if (_currentLocationDisplay.startsWith(',')) {
-            _currentLocationDisplay = _currentLocationDisplay.substring(1).trim();
+            _currentLocationDisplay =
+                _currentLocationDisplay.substring(1).trim();
           }
         });
       } else {
@@ -72,8 +77,8 @@ class _HomePageState extends State<HomePage> {
       }
 
       // PharmacyService'i kullanarak eczaneleri çek
-      final List<PharmacyModel> fetchedPharmacies = 
-          await _pharmacyService.getOnDutyPharmacies(city: city, district: district);
+      final List<PharmacyModel> fetchedPharmacies = await _pharmacyService
+          .getOnDutyPharmacies(city: city, district: district);
 
       setState(() {
         _allPharmacies = fetchedPharmacies;
@@ -86,7 +91,7 @@ class _HomePageState extends State<HomePage> {
         _isLoading = false;
         _currentLocationDisplay = "Konum Alınamadı";
       });
-      print('Eczane verileri yüklenirken hata oluştu: $e');
+      throw Exception('Eczane verileri yüklenirken hata oluştu: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Hata: $_errorMessage')),
       );
@@ -108,9 +113,11 @@ class _HomePageState extends State<HomePage> {
   // Konum değiştirme fonksiyonu
   Future<void> _changeLocation() async {
     // Mevcut konum bilgilerini controller'lara yükle
-    final currentParts = _currentLocationDisplay.split(',').map((s) => s.trim()).toList();
+    final currentParts =
+        _currentLocationDisplay.split(',').map((s) => s.trim()).toList();
     _districtController.text = currentParts.length > 1 ? currentParts[0] : '';
-    _cityController.text = currentParts.length > 1 ? currentParts[1] : currentParts[0];
+    _cityController.text =
+        currentParts.length > 1 ? currentParts[1] : currentParts[0];
 
     final result = await showDialog<Map<String, String>>(
       context: context,
@@ -122,12 +129,14 @@ class _HomePageState extends State<HomePage> {
             children: [
               TextField(
                 controller: _cityController,
-                decoration: const InputDecoration(hintText: "Şehir (örn: Ankara)"),
+                decoration:
+                    const InputDecoration(hintText: "Şehir (örn: Ankara)"),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _districtController,
-                decoration: const InputDecoration(hintText: "İlçe (örn: Çankaya)"),
+                decoration:
+                    const InputDecoration(hintText: "İlçe (örn: Çankaya)"),
               ),
             ],
           ),
@@ -211,7 +220,8 @@ class _HomePageState extends State<HomePage> {
             )
           else if (_filteredPharmacies.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Text(
                 _searchController.text.isEmpty
                     ? 'Yakındaki Nöbetçi Eczaneler'
@@ -225,18 +235,22 @@ class _HomePageState extends State<HomePage> {
 
           // Eczane Listesi
           Expanded(
-            child: _filteredPharmacies.isEmpty && !_isLoading && _errorMessage == null
+            child: _filteredPharmacies.isEmpty &&
+                    !_isLoading &&
+                    _errorMessage == null
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.search_off, size: 60, color: Colors.grey[400]),
+                        Icon(Icons.search_off,
+                            size: 60, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
                           _allPharmacies.isEmpty
                               ? 'Nöbetçi eczane bulunamadı.'
                               : 'Aramanızla eşleşen eczane bulunamadı.',
-                          style: TextStyle(fontSize: 18.0, color: Colors.grey[600]),
+                          style: TextStyle(
+                              fontSize: 18.0, color: Colors.grey[600]),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -248,9 +262,13 @@ class _HomePageState extends State<HomePage> {
                       final pharmacy = _filteredPharmacies[index];
                       return PharmacyCard(
                         pharmacy: pharmacy,
-                        onCall: () => PhoneUtils.makePhoneCall(context, pharmacy.phone),
+                        onCall: () =>
+                            PhoneUtils.makePhoneCall(context, pharmacy.phone),
                         onMap: () => MapUtils.openMap(
-                            context, pharmacy.latitude, pharmacy.longitude, pharmacy.name),
+                            context,
+                            pharmacy.latitude,
+                            pharmacy.longitude,
+                            pharmacy.name),
                       );
                     },
                   ),

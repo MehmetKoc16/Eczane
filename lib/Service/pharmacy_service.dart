@@ -9,12 +9,14 @@ class PharmacyService {
   static const String _apikey =
       "apikey 1O4iBRjCxv4eflQqKKv0Rc:7laKqrEuiayIRhOxKiSYrN";
 
-  final Dio _dio = Dio();
-  
-  // Kullanıcının konumunu alır ve il/ilçe bilgisine dönüştürür
+  final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
+    sendTimeout: const Duration(seconds: 10),
+  ));
+
   Future<Map<String, String>> getLocation() async {
     try {
-      // Konum izni kontrolü
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -22,47 +24,45 @@ class PharmacyService {
           throw Exception("Konum izni reddedildi.");
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
-        throw Exception("Konum izni kalıcı olarak reddedildi. Ayarlardan izin vermeniz gerekiyor.");
+        throw Exception(
+            "Konum izni kalıcı olarak reddedildi. Ayarlardan izin vermeniz gerekiyor.");
       }
-      
-      // Konum al
+
       final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
         ),
       );
-      
-      // Konum bilgisini adres bilgisine dönüştür
+
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
-      
+
       if (placemarks.isEmpty) {
         throw Exception("Konum bilgisi adrese dönüştürülemedi.");
       }
-      
+
       final Placemark place = placemarks.first;
-      
+
       // Türkçe karakterleri düzelt
       String city = _normalizeText(place.administrativeArea ?? '');
       String district = _normalizeText(place.subAdministrativeArea ?? '');
-      
+
       return {
         'city': city,
         'district': district,
       };
     } catch (e) {
-      print("Konum alınırken hata: $e");
-      rethrow;
+      throw Exception("Konum alınırken hata: $e");
     }
   }
 
-  // Nöbetçi eczaneleri getirir
-  Future<List<PharmacyModel>> getOnDutyPharmacies({String? city, String? district}) async {
+  Future<List<PharmacyModel>> getOnDutyPharmacies(
+      {String? city, String? district}) async {
     String targetCity = city ?? '';
     String targetDistrict = district ?? '';
     try {
@@ -74,66 +74,83 @@ class PharmacyService {
           throw Exception("Konum bilgisi (şehir) alınamadı veya belirtilmedi.");
         }
       }
-      
-      // URL parametrelerini oluştur
+
       String url = '$_baseUrl?il=${Uri.encodeComponent(targetCity)}';
       if (targetDistrict.isNotEmpty) {
         url += '&ilce=${Uri.encodeComponent(targetDistrict)}';
       }
-      
-      // CollectAPI header'larını ayarla
+
       final Map<String, dynamic> headers = {
         "authorization": _apikey,
         "content-type": "application/json",
       };
-      
-      final response = await _dio.get(url, options: Options(headers: headers));
-      
-      if (response.statusCode != 200) {
-        throw Exception(
-            "API'den veri çekerken hata oluştu. ${response.statusCode}");
+
+      int maxRetries = 3;
+      int retryCount = 0;
+      Response? response;
+
+      while (retryCount < maxRetries) {
+        try {
+          response = await _dio.get(url, options: Options(headers: headers));
+          break;
+        } on DioException catch (e) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            rethrow;
+          }
+          await Future.delayed(Duration(seconds: 1 * retryCount));
+          throw Exception(
+              'API isteği başarısız oldu, yeniden deneniyor ($retryCount/$maxRetries)');
+        }
       }
-      
+
+      if (response == null || response.statusCode != 200) {
+        throw Exception(
+            "API'den veri çekerken hata oluştu. ${response?.statusCode}");
+      }
+
       final Map<String, dynamic> responseData = response.data;
-      
+
       if (responseData['success'] != true) {
         throw Exception(
             "API'den başarılı yanıt alınamadı: ${responseData['reason'] ?? 'Bilinmeyen Hata'}");
       }
-      
+
       final List<dynamic> pharmacyResult = responseData["result"];
-      
-      // API'den gelen veriyi PharmacyModel'e dönüştür
-      final List<PharmacyModel> pharmacies = pharmacyResult.map((jsonItem) => 
-        PharmacyModel.fromJson(jsonItem)
-      ).toList();
-      
+
+      final List<PharmacyModel> pharmacies = pharmacyResult
+          .map((jsonItem) => PharmacyModel.fromJson(jsonItem))
+          .toList();
+
       return pharmacies;
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        throw Exception(
+            "Timeout hatası: API yanıt vermedi. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.");
+      }
+
       if (e.response != null) {
-        print("Dio Error: ${e.response?.statusCode} - ${e.response?.statusMessage}");
-        print("Response data: ${e.response?.data}");
-        throw Exception("API hatası: ${e.response?.statusCode} - ${e.response?.statusMessage}");
+        throw Exception(
+            "API hatası: ${e.response?.statusCode} - ${e.response?.statusMessage}. Response data: ${e.response?.data}");
       } else {
-        print("Dio Error without response: ${e.message}");
         throw Exception("Bağlantı hatası: ${e.message}");
       }
     } catch (e) {
-      print("General Error: $e");
       throw Exception("Beklenmeyen hata: $e");
     }
   }
-  
-  // Türkçe karakterleri düzeltme yardımcı metodu
+
   String _normalizeText(String text) {
     const turkishChars = 'çğıöşüÇĞİÖŞÜ';
     const englishChars = 'cgiosuCGIOSU';
-    
+
     String normalized = text;
     for (int i = 0; i < turkishChars.length; i++) {
       normalized = normalized.replaceAll(turkishChars[i], englishChars[i]);
     }
-    
+
     return normalized;
   }
 }
